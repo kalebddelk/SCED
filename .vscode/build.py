@@ -159,7 +159,7 @@ def collect_tracked_object_guid_paths(mod_dir: Path) -> dict[str, Path]:
     except (subprocess.CalledProcessError, FileNotFoundError):
         return {}
 
-    guid_to_relpath: dict[str, Path] = {}
+    guid_to_relpaths: dict[str, list[Path]] = {}
     for rel_str in output.splitlines():
         if not rel_str.endswith(".json"):
             continue
@@ -173,9 +173,11 @@ def collect_tracked_object_guid_paths(mod_dir: Path) -> dict[str, Path]:
         except (json.JSONDecodeError, OSError):
             continue
         guid = payload.get("GUID")
-        if isinstance(guid, str) and guid and guid not in guid_to_relpath:
-            guid_to_relpath[guid] = rel_path
-    return guid_to_relpath
+        if isinstance(guid, str) and guid:
+            guid_to_relpaths.setdefault(guid, []).append(rel_path)
+
+    # Reconciliation is only safe for GUIDs that map to exactly one tracked file.
+    return {guid: paths[0] for guid, paths in guid_to_relpaths.items() if len(paths) == 1}
 
 
 def reconcile_object_paths_after_decompose(
