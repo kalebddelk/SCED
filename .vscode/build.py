@@ -82,6 +82,14 @@ def get_output_folder():
     return base_dir / TTS_SUFFIX
 
 
+def get_script_dir() -> Path:
+    return Path(__file__).resolve().parent
+
+
+def get_repo_root() -> Path:
+    return get_script_dir().parent
+
+
 def get_base_command():
     binary_map = {
         "Windows": "TTSModManager.exe",
@@ -89,7 +97,7 @@ def get_base_command():
         "Linux": "TTSModManager",
     }
     binary_name = binary_map.get(PLATFORM, "TTSModManager")
-    binary_path = Path.cwd() / "bin" / binary_name
+    binary_path = get_script_dir() / "bin" / binary_name
 
     if not FORCE_GO and binary_path.is_file():
         return [str(binary_path)], False
@@ -133,20 +141,22 @@ def load_savegame_in_TTS():
 
 
 def copy_preview_image(output_folder, branch):
+    script_dir = get_script_dir()
     base_image = Path(f"{GAME_NAME}.png")
     dev_image = Path(f"{GAME_NAME}_dev.png")
 
-    # Use dev image ONLY if on a non-main branch AND the file exists
-    if branch and branch != "main" and dev_image.exists():
-        source_image = dev_image
+    # Prefer dev icon on feature branches when available.
+    if branch and branch != "main" and (script_dir / dev_image).exists():
+        source_image = script_dir / dev_image
+    elif (script_dir / base_image).exists():
+        source_image = script_dir / base_image
     else:
-        source_image = base_image
+        source_image = None
 
-    # Perform the copy (and maybe rename) with a safety check
-    if source_image.exists():
+    if source_image is not None:
         shutil.copy(source_image, output_folder / base_image)
     else:
-        print(f"Note: Icon {source_image} not found, skipping copy.")
+        print(f"Note: Icon {base_image.name} not found in {script_dir}, skipping copy.")
 
 
 # CONFIGURATION
@@ -173,15 +183,23 @@ def main():
         choices=["build", "decompose"],
         help="Action to perform: build or decompose.",
     )
-    parser.add_argument("--moddir", required=True, help="The mod directory.")
+    parser.add_argument(
+        "--moddir",
+        default=str(get_repo_root()),
+        help="The mod directory. Defaults to the repo root.",
+    )
     args = parser.parse_args()
 
     # Determine folder and command
     output_folder = get_output_folder()
     cmd, using_go = get_base_command()
 
+    mod_dir = Path(args.moddir).expanduser()
+    if not mod_dir.is_absolute():
+        mod_dir = (Path.cwd() / mod_dir).resolve()
+
     # Set up command-line arguments
-    mod_dir_arg = ["-moddir", args.moddir]
+    mod_dir_arg = ["-moddir", str(mod_dir)]
     mod_file_arg = ["-modfile", str(output_folder / f"{GAME_NAME}.json")]
     reverse_arg = ["-reverse"] if args.action == "decompose" else []
 
@@ -197,9 +215,9 @@ def main():
     print(f"Command: {' '.join(full_cmd)}")
 
     if using_go:
-        git_dir_path = Path(__file__).resolve().parent.resolve().parent.resolve().parent
-        full_ttsmodmanager_path = git_dir_path / "TTSModManager"
-        subprocess.run(full_cmd, check=True, cwd=full_ttsmodmanager_path)
+        repo_root = get_repo_root()
+        full_ttsmodmanager_path = repo_root / "TTSModManager"
+        subprocess.run(full_cmd, check=True, cwd=str(full_ttsmodmanager_path))
     else:
         subprocess.run(full_cmd, check=True)
 
