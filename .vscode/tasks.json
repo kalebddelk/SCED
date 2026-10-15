@@ -44,6 +44,27 @@
       "problemMatcher": []
     },
     {
+      "label": "Arkham SCE: Watch",
+      "type": "process",
+      "command": "python",
+      "osx": {
+        "command": "python3"
+      },
+      "args": [
+        "${workspaceFolder}/.vscode/build.py",
+        "--action",
+        "build",
+        "--moddir",
+        "${workspaceFolder}",
+        "--watch"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}${pathSeparator}.vscode"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
       "label": "Arkham SCE: Debug Line",
       "type": "process",
       "command": "python",
