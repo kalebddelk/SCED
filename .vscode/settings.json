@@ -9,5 +9,6 @@
     "need-check-nil",
     "assign-type-mismatch",
     "param-type-mismatch"
-  ]
+  ],
+  "python-envs.defaultEnvManager": "ms-python.python:system"
 }
