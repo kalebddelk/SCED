@@ -82,6 +82,11 @@ def get_output_folder():
     return base_dir / TTS_SUFFIX
 
 
+def get_default_moddir() -> Path:
+    """Returns the default mod source directory (repository root)."""
+    return Path(__file__).resolve().parent.parent
+
+
 def get_base_command():
     binary_map = {
         "Windows": "TTSModManager.exe",
@@ -89,10 +94,17 @@ def get_base_command():
         "Linux": "TTSModManager",
     }
     binary_name = binary_map.get(PLATFORM, "TTSModManager")
-    binary_path = Path.cwd() / "bin" / binary_name
+    repo_root = get_default_moddir()
+    binary_candidates = [
+        repo_root / ".vscode" / "bin" / binary_name,
+        repo_root / "bin" / binary_name,
+        Path.cwd() / "bin" / binary_name,
+    ]
 
-    if not FORCE_GO and binary_path.is_file():
-        return [str(binary_path)], False
+    if not FORCE_GO:
+        for binary_path in binary_candidates:
+            if binary_path.is_file():
+                return [str(binary_path)], False
     return ["go", "run", "main.go"], True
 
 
@@ -173,7 +185,10 @@ def main():
         choices=["build", "decompose"],
         help="Action to perform: build or decompose.",
     )
-    parser.add_argument("--moddir", required=True, help="The mod directory.")
+    parser.add_argument(
+        "--moddir",
+        help=f"The mod directory. Defaults to {get_default_moddir()}.",
+    )
     args = parser.parse_args()
 
     # Determine folder and command
@@ -181,7 +196,8 @@ def main():
     cmd, using_go = get_base_command()
 
     # Set up command-line arguments
-    mod_dir_arg = ["-moddir", args.moddir]
+    moddir = str(Path(args.moddir).resolve()) if args.moddir else str(get_default_moddir())
+    mod_dir_arg = ["-moddir", moddir]
     mod_file_arg = ["-modfile", str(output_folder / f"{GAME_NAME}.json")]
     reverse_arg = ["-reverse"] if args.action == "decompose" else []
 
